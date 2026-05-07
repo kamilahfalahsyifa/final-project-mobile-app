@@ -1,8 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:task_hub/auth/login_page.dart';
+import 'package:task_hub/services/storage_service.dart';
+import 'package:task_hub/main.dart';
 
-class ProfilePage extends StatelessWidget {
+class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
+
+  @override
+  State<ProfilePage> createState() => _ProfilePageState();
+}
+
+class _ProfilePageState extends State<ProfilePage> {
+  late bool _isDarkMode;
+  late String _userName;
+  late String _userEmail;
+
+  @override
+  void initState() {
+    super.initState();
+    _isDarkMode = StorageService.getDarkMode();
+    final userData = StorageService.getUserData();
+    _userName = userData['name'] ?? 'Hustler User';
+    _userEmail = userData['email'] ?? 'hustler@mahasiswa.com';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -11,29 +31,38 @@ class ProfilePage extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(24.0),
         children: [
-          const CircleAvatar(
+          CircleAvatar(
             radius: 50,
-            backgroundColor: Colors.black12,
-            child: Icon(Icons.person, size: 50, color: Colors.black),
+            backgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+            child: Icon(Icons.person, size: 50, color: Theme.of(context).colorScheme.primary),
           ),
           const SizedBox(height: 16),
-          const Center(
-            child: Text('Hustler User', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-          ),
-          const Center(
-            child: Text('hustler@mahasiswa.com', style: TextStyle(fontSize: 16, color: Colors.grey)),
-          ),
+          Center(child: Text(_userName, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold))),
+          Center(child: Text(_userEmail, style: const TextStyle(fontSize: 16, color: Colors.grey))),
           const SizedBox(height: 48),
           ListTile(
             leading: const Icon(Icons.dark_mode_outlined),
             title: const Text('Dark Mode'),
-            trailing: Switch(value: false, onChanged: (val) {}),
+            trailing: Switch(
+              value: _isDarkMode,
+              onChanged: (val) {
+                setState(() => _isDarkMode = val);
+                StorageService.setDarkMode(val);
+                final appState = context.findAncestorStateOfType<TaskHubAppState>();
+                appState?.toggleDarkMode();
+              },
+            ),
           ),
           ListTile(
             leading: const Icon(Icons.notifications_outlined),
             title: const Text('Notifications'),
             trailing: const Icon(Icons.chevron_right),
-            onTap: () {},
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const NotificationsPage()),
+              );
+            },
           ),
           const Divider(),
           ListTile(
@@ -45,6 +74,58 @@ class ProfilePage extends StatelessWidget {
                 MaterialPageRoute(builder: (context) => const LoginPage()),
                 (route) => false,
               );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class NotificationsPage extends StatefulWidget {
+  const NotificationsPage({super.key});
+
+  @override
+  State<NotificationsPage> createState() => _NotificationsPageState();
+}
+
+class _NotificationsPageState extends State<NotificationsPage> {
+  late bool _notificationsEnabled;
+  TimeOfDay _reminderTime = const TimeOfDay(hour: 9, minute: 0);
+
+  @override
+  void initState() {
+    super.initState();
+    _notificationsEnabled = StorageService.getNotificationsEnabled();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Notifications')),
+      body: ListView(
+        children: [
+          SwitchListTile(
+            title: const Text('Enable Notifications'),
+            subtitle: const Text('Receive reminders for your tasks'),
+            value: _notificationsEnabled,
+            onChanged: (val) {
+              setState(() => _notificationsEnabled = val);
+              StorageService.setNotificationsEnabled(val);
+            },
+          ),
+          ListTile(
+            title: const Text('Default Reminder Time'),
+            subtitle: Text(_reminderTime.format(context)),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () async {
+              final time = await showTimePicker(
+                context: context,
+                initialTime: _reminderTime,
+              );
+              if (time != null) {
+                setState(() => _reminderTime = time);
+              }
             },
           ),
         ],
